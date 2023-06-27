@@ -1,3 +1,12 @@
+<?php
+session_start();
+
+if(!isset($_SESSION['user_name'])) {
+    header('Location: login.php');
+    exit;
+}
+?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -6,7 +15,7 @@
     <title>Robot en Bolsa de Valores</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.0/font/bootstrap-icons.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="./css/styles.css">
+    
 </head>
 <body>
     <div class="container-fluid">
@@ -22,12 +31,17 @@
                                 <i class="fs-4 bi-align-center"></i> <span class="ms-1 d-none d-sm-inline">Simulador</span>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link align-middle px-0" data-page="registros.php">
+                                <i class="fs-4 bi-card-list"></i> <span class="ms-1 d-none d-sm-inline">Registros</span>
+                            </a>
+                        </li>
                     </ul>
                     <hr>
                     <div class="dropdown pb-4">
                         <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
-                            <img src="https://rvideos2.memedroid.com/videos/UPLOADED573/63b8cc8e4258b.webp" alt="hugenerd" width="30" height="30" class="rounded-circle">
-                            <span class="d-none d-sm-inline mx-1">usuario</span>
+                            <img src="<?php echo $_SESSION['user_urlimg']?>" alt="hugenerd" width="30" height="30" class="rounded-circle">
+                            <span class="d-none d-sm-inline mx-1"><?php echo $_SESSION['user_name']?></span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
                             <li><a class="dropdown-item" href="#">Configuracion</a></li>
@@ -35,12 +49,12 @@
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
-                            <li><a class="dropdown-item" href="#">Salir</a></li>
+                            <li><a class="dropdown-item" href="#" id="logout">Salir</a></li>
                         </ul>
                     </div>
                 </div>
             </div>
-            <div class="col py-3 bg-dark text-light" id="content">
+            <div class="col py-3 bg-dark text-light bg-gradient" id="content">
                 
             </div>
         </div>
@@ -74,6 +88,20 @@
                     }
                 });
             }
+
+            $('#logout').click(function() {
+                $.ajax({
+                    url: 'acc/logout.php',
+                    type: 'POST',
+                    dataType: 'json',
+                    success: function(response) {
+                        window.location.href = 'login.php';
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error al cerrar la sesión: ' + error);
+                    }
+                });
+            });
         });
     </script>
 </body>

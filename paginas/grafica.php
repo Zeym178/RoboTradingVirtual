@@ -1,3 +1,12 @@
+<?php
+session_start();
+
+if(!isset($_SESSION['user_name'])) {
+    header('Location: login.php');
+    exit;
+}
+?>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -26,7 +35,7 @@
                 <ul class="list-group">
                     <li class="list-group-item">Dinero en Cuenta: $<span id="dinerocuenta"></span></li>
                     <li class="list-group-item">Acciones: <span id="valacciones"></span></li>
-                    <li class="list-group-item">Valor en el Mercado: <span id="valmercado"></span></li>
+                    <li class="list-group-item">Valor en el Mercado: $<span id="valmercado"></span></li>
                 </ul>
             </div>
 
@@ -40,15 +49,25 @@
                     <li class="list-group-item">Mínimo mensual: $<span id="indicator-monthly-low"></span></li>
                 </ul>
             </div>
-            <div class="col-1 text-center align-self-center">
-                <div class="form-check form-switch my-4">
-                    <input class="form-check-input" type="checkbox" id="botSwitch">
-                    <label class="form-check-label" for="botSwitch">Activar Bot</label>
+            <div class="col-lg-2 col-sm-8 text-center align-self-center">
+                <div class="row justify-content-center">
+                    <div class="col-8 form-check form-switch my-4">
+                        <input class="form-check-input" type="checkbox" id="botSwitch">
+                        <label class="form-check-label" for="botSwitch">Activar Bot</label>
+                    </div>
+                    <div class="col-12 mb-4">
+                        <div id="botinputcontainer">
+                            <label for="botInput" class="form-label" >Inversion del BOT (Dolares):</label>
+                            <input type="number" class="form-control" id="botInput"  step="0.0001" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="col-6 pb-2">
+                        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#buyModal">Comprar</button>
+                    </div>
+                    <div class="col-6 pb-2">
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#sellModal">Vender</button>
+                    </div>
                 </div>
-                <div class="pb-2">
-                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#buyModal">Comprar</button>
-                </div>
-                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#sellModal">Vender</button>
             </div>
             
         </div>
@@ -64,9 +83,15 @@
                 </div>
                 <form id="buyForm">
                     <div class="modal-body">
+                        <div class="">
+                            <select class="form-select" id="buyselect">
+                                <option value="buydolar">Dolares</option>
+                                <option value="buyaccion">Acciones</option>
+                            </select>
+                        </div>
                         <div class="mb-3">
-                            <label for="cantidadcompra">Cantidad en dólares a invertir:</label>
-                            <input type="number" class="form-control" id="cantidadcompra" name="cantidadcompra" step="0.01" autocomplete="off">
+                            <label for="cantidadcompra">Cantidad a invertir:</label>
+                            <input type="number" class="form-control" id="cantidadcompra" name="cantidadcompra" step="0.0001" autocomplete="off">
                         </div>
                         <ul class="list-group">
                             <li class="list-group-item">Precio actual: $<span class="preciocompra"></span></li>
@@ -92,13 +117,19 @@
                 </div>
                 <form id="sellForm">
                     <div class="modal-body">
+                        <div class="">
+                            <select class="form-select" id="sellselect">
+                                <option value="selldolar">Dolares</option>
+                                <option value="sellaccion">Acciones</option>
+                            </select>
+                        </div>
                         <div class="mb-3">
-                            <label for="cantidadventa">Cantidad a vender (Dolares):</label>
+                            <label for="cantidadventa">Cantidad a vender:</label>
                             <input type="number" class="form-control" id="cantidadventa" name="cantidadventa" step="0.01" autocomplete="off">
                         </div>
                         <ul class="list-group">
                             <li class="list-group-item">Precio actual: $<span class="preciocompra"></span></li>
-                            <li class="list-group-item">Estimado de venta (Acciones): <span id="estimadoventa"></span></li>
+                            <li class="list-group-item">Estimado de venta: <span id="estimadoventa"></span></li>
                         </ul>
                     </div>
                     <div class="modal-footer">

@@ -2,12 +2,12 @@ var intervalID;
 var chart;
 var candleSeries;
 var data = {};
+var markers = {};
 var activeIndex = 'index1';
-var dinerotot = 100000.00;
-var accionestot = 100;
 var fbot = false;
-var botdir = true;
+var botdir = false;
 var botini = 0;
+var botaccion = 0.0;
 
 $(document).ready(function() {
     data.index1 = generateInitialData(1000);
@@ -16,8 +16,10 @@ $(document).ready(function() {
     data.index4 = generateInitialData(1000);
     data.index5 = generateInitialData(1000);
 
+
     createCandlestickChart('chart', data.index1);
     updateIndicators(data.index1[data.index1.length - 1]);
+    getuserdata();
 
     intervalID = setInterval(function() {
         var newData = generateRealtimeData();
@@ -32,20 +34,35 @@ $('#botSwitch').change(function() {
         botini = data[activeIndex][data[activeIndex].length - 1].close;
         console.log(botini);
         botdir = false;
+    } else {
+        fbot = false;
+        botdir = false;
+        botini = 0;
+        botaccion = 0.0;
     }
 });
 
-$('#cantidadcompra').on('input', function() {
+$('#cantidadcompra').keyup('input', function() {
     var cantidad = parseFloat($(this).val());
     var precioCompra = parseFloat($('.preciocompra').text());
-    var estimadoCompra = (cantidad / precioCompra).toFixed(4);
+    var estimadoCompra;
+    if ($('#buyselect').val() === 'buyaccion') {
+        estimadoCompra = (cantidad * precioCompra).toFixed(4);
+    } else {
+        estimadoCompra = (cantidad / precioCompra).toFixed(4);
+    }
     $('#estimadocompra').text(estimadoCompra);
 });
 
-$('#cantidadventa').on('input', function() {
+$('#cantidadventa').keyup('input', function() {
     var cantidad = parseFloat($(this).val());
     var precioCompra = parseFloat($('.preciocompra').text());
-    var estimadoVenta = (cantidad / precioCompra).toFixed(4);
+    var estimadoVenta;
+    if ($('#sellselect').val() === 'sellaccion') {
+        estimadoVenta = (cantidad * precioCompra).toFixed(4);
+    } else {
+        estimadoVenta = (cantidad / precioCompra).toFixed(4);
+    }
     $('#estimadoventa').text(estimadoVenta);
 });
 
@@ -53,20 +70,59 @@ $('#buyForm').submit(function(event) {
     event.preventDefault();
     var compra = parseFloat($('#cantidadcompra').val());
     var cantidad = parseFloat($('#estimadocompra').text());
-    realizarCompra(compra, cantidad);
+    var indexname = $('option[value="' + activeIndex + '"]').text();
+    if ($('#buyselect').val() === 'buyaccion') {
+        var aux = cantidad;
+        cantidad = compra;
+        compra = aux;
+    }
+    realizarAccion(compra * -1, cantidad, indexname);
 });
 
 $('#sellForm').submit(function(event) {
     event.preventDefault();
     var compra = parseFloat($('#cantidadventa').val());
     var cantidad = parseFloat($('#estimadoventa').text());
-    realizarVenta(compra, cantidad);
+    var indexname = $('option[value="' + activeIndex + '"]').text();
+    if ($('#sellselect').val() === 'sellaccion') {
+        var aux = cantidad;
+        cantidad = compra;
+        compra = aux;
+    }
+    realizarAccion(compra, cantidad * -1, indexname);
 });
 
-function realizarCompra(comprap, cantidadp) {
+function realizarAccion(comprap, cantidadp, indexname) {
     var tipo = 'Compra';
+    var dinerocuenta = parseFloat($('#dinerocuenta').text());
+    var valacciones = parseFloat($('#valacciones').text());
+    if (comprap > 0) {
+        tipo = 'Venta';
+        if (valacciones + cantidadp < 0) return;
+    }
+    if (dinerocuenta + comprap < 0) return;
     var precio = parseFloat($('.preciocompra').text());
-    var fechaHora = new Date().toISOString();
+    //var fechaHora = new Date().toISOString();
+
+    var fechaHora = new Date();
+
+    var fecha = fechaHora.getFullYear() + '-' + (fechaHora.getMonth() + 1).toString().padStart(2, '0') + '-' + fechaHora.getDate().toString().padStart(2, '0');
+    var hora = fechaHora.getHours().toString().padStart(2, '0') + ':' + fechaHora.getMinutes().toString().padStart(2, '0') + ':' + fechaHora.getSeconds().toString().padStart(2, '0');
+
+    var fechaHora = fecha + 'T' + hora;
+
+    //console.log(fechaHoraFormateada);
+
+    newmarker = {
+        time: data[activeIndex][data[activeIndex].length - 1].time,
+        position: 'aboveBar',
+        color: tipo === 'Compra' ? '#008000' : '#ff0000',
+        shape: 'circle',
+        text: tipo
+    };
+    if (!(markers[activeIndex])) markers[activeIndex] = [];
+    markers[activeIndex].push(newmarker);
+    candleSeries.setMarkers(markers[activeIndex]);
 
     $.ajax({
         url: './acc/registrar_transaccion.php',
@@ -74,18 +130,20 @@ function realizarCompra(comprap, cantidadp) {
         data: {
             tipo: tipo,
             cantidad: cantidadp,
+            total: comprap,
             precio: precio,
-            fechaHora: fechaHora
+            fechaHora: fechaHora,
+            indexname: indexname
         },
         success: function(response) {
-            dinerotot -= comprap;
-            accionestot += cantidadp;
             console.log('Transacción registrada: ' + response);
-            console.log('Dinero total: ' + dinerotot);
-            $('#dinerocuenta').text(dinerotot);
-            $('#valacciones').text(accionestot);
+            getuserdata();
+            //$('#dinerocuenta').text(dinerotot);
+            //$('#valacciones').text(accionestot);
             $('#buyForm')[0].reset();
             $('#buyModal').modal('hide');
+            $('#sellForm')[0].reset();
+            $('#sellModal').modal('hide');
         },
         error: function(jqXHR, textStatus, errorThrown) {
             console.error('Error al registrar la transacción:', errorThrown);
@@ -93,32 +151,21 @@ function realizarCompra(comprap, cantidadp) {
     });
 }
 
-function realizarVenta(comprap, cantidadp) {
-    var tipo = 'Venta';
-    var precio = parseFloat($('.preciocompra').text());
-    var fechaHora = new Date().toISOString();
-
+function getuserdata() {
+    var indexname = $('option[value="' + activeIndex + '"]').text();
     $.ajax({
-        url: './acc/registrar_transaccion.php',
+        url: './acc/get-userdata.php',
         method: 'POST',
         data: {
-            tipo: tipo,
-            cantidad: cantidadp,
-            precio: precio,
-            fechaHora: fechaHora
+            indexname: indexname
         },
+        dataType: 'json',
         success: function(response) {
-            dinerotot += comprap;
-            accionestot -= cantidadp;
-            console.log('Transacción registrada: ' + response);
-            console.log('Dinero total: ' + dinerotot);
-            $('#dinerocuenta').text(dinerotot);
-            $('#valacciones').text(accionestot);
-            $('#sellForm')[0].reset();
-            $('#sellModal').modal('hide');
+            $('#dinerocuenta').text(response.dinero);
+            $('#valacciones').text(response.acciones);
         },
-        error: function(jqXHR, textStatus, errorThrown) {
-            console.error('Error al registrar la transacción:', errorThrown);
+        error: function(errorThrown) {
+            console.error('Error al traer los datos del usuario:', errorThrown);
         }
     });
 }
@@ -167,8 +214,7 @@ function generateRealtimeData() {
 
     for (var index in data) {
         var lastData = data[index][data[index].length - 1];
-        var date = new Date(lastData.time);
-        date.setTime(date.getTime() + 1000);
+        var date = new Date();
 
         var open = lastData.close;
         var high, low, close;
@@ -206,10 +252,13 @@ function getRandomPrice(min, max) {
 }
 
 function updateCandlestickChart(newData) {
+
     for (var index in newData) {
         data[index].push(newData[index]);
+
         if (index === activeIndex) {
             candleSeries.setData(data[index]);
+
         }
     }
 
@@ -219,20 +268,27 @@ function updateCandlestickChart(newData) {
             if (newData[activeIndex].close < botprev && newData[activeIndex].close - botini > 0) {
                 botini = newData[activeIndex].close;
                 botdir = false;
-                var compra = 2000.00;
                 var precioCompra = parseFloat($('.preciocompra').text());
-                var cantidad = (compra / precioCompra).toFixed(4);
-                realizarVenta(compra, cantidad);
+                var cantidad = (botaccion * precioCompra).toFixed(4);
+                var indexname = $('option[value="' + activeIndex + '"]').text();
+                realizarAccion(cantidad, botaccion * -1, indexname);
+
                 console.log('venta');
             }
         } else {
             if (newData[activeIndex].close > botprev && botini - newData[activeIndex].close > 0) {
+                var dinerocuenta = parseFloat($('#dinerocuenta').text());
+                var compra = parseFloat($('#botInput').val());
+                if (($('#botInput').val()).trim() === '' || dinerocuenta - compra < 0) return;
+
                 botini = newData[activeIndex].close;
                 botdir = true;
-                var compra = 1000.00;
                 var precioCompra = parseFloat($('.preciocompra').text());
                 var cantidad = (compra / precioCompra).toFixed(4);
-                realizarCompra(compra, cantidad);
+                var indexname = $('option[value="' + activeIndex + '"]').text();
+                realizarAccion(compra * -1, cantidad, indexname);
+                botaccion = cantidad;
+
                 console.log('compra');
             }
         }
@@ -265,8 +321,17 @@ function createCandlestickChart(containerId, data) {
 }
 
 $('#index-select').change(function() {
+    $('#botSwitch').prop('checked', false);
+    fbot = false;
+    botdir = false;
+    botini = 0;
+    botaccion = 0.0;
+
     activeIndex = $(this).val();
     candleSeries.setData(data[activeIndex]);
+    if (!(markers[activeIndex])) markers[activeIndex] = [];
+    candleSeries.setMarkers(markers[activeIndex]);
+    getuserdata();
     updateIndicators(data[activeIndex][data[activeIndex].length - 1]);
 });
 
@@ -300,12 +365,13 @@ function updateIndicators(dataf) {
     });
 
     var f = new Date(data.time);
-    $('#dinerocuenta').text(dinerotot);
-    $('#valacciones').text(accionestot);
     $('.preciocompra').text(dataf.close);
     $('#indicator-open').text(todayopen);
     $('#indicator-high').text(maxDay);
     $('#indicator-low').text(minDay);
     $('#indicator-monthly-high').text(maxMonth);
     $('#indicator-monthly-low').text(minMonth);
+
+    var acciones = parseFloat($('#valacciones').text());
+    $('#valmercado').text((dataf.close * acciones).toFixed(2));
 }
